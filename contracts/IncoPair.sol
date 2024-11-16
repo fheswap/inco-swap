@@ -65,6 +65,15 @@ contract IncoPair is GatewayCaller, ConfidentialERC20 {
     }
 
     // remove liquidity
+    function removeLiquidity(
+        einput _toBurnInput,
+        bytes calldata inputProof
+    ) public {
+        euint64 toBurn = TFHE.asEuint64(_toBurnInput, inputProof);
+        _burn(toBurn);
+
+        // TODO: to calculate how to return appropriate amount of tokens back to the user
+    }
 
     // swap
 }

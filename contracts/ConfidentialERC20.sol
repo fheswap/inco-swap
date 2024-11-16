@@ -58,6 +58,13 @@ contract ConfidentialERC20 is Ownable2Step, GatewayCaller {
         TFHE.allow(balances[msg.sender], msg.sender);
     }
 
+    function _burn(euint64 amount) internal {
+        balances[msg.sender] = TFHE.sub(balances[msg.sender], amount);
+        TFHE.allow(balances[msg.sender], address(this));
+        TFHE.allow(balances[msg.sender], owner());
+        TFHE.allow(balances[msg.sender], msg.sender);
+    }
+
     // Transfer function for EOAs using encrypted inputs
     function transfer(
         address to,
