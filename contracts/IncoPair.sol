@@ -22,6 +22,7 @@ contract IncoPair is GatewayCaller, ConfidentialERC20 {
     euint64 public eCumulativeToken1;
     mapping(address => euint64) public eUserCumulativeToken0;
     mapping(address => euint64) public eUserCumulativeToken1;
+    address[] public swapUsers;
 
     constructor(IConfidentialERC20 _token0, IConfidentialERC20 _token1) {
         token0 = _token0;
@@ -83,6 +84,18 @@ contract IncoPair is GatewayCaller, ConfidentialERC20 {
         // TODO: to calculate how to return appropriate amount of tokens back to the user
     }
 
+    function mockAddLiquidity(
+        einput _addToken0Amount,
+        bytes calldata inputProof0,
+        einput _addToken1Amount,
+        bytes calldata inputProof1
+    ) public {
+        euint64 token0Amount = TFHE.asEuint64(_addToken0Amount, inputProof0);
+        euint64 token1Amount = TFHE.asEuint64(_addToken1Amount, inputProof1);
+        eReserve0 = token0Amount;
+        eReserve1 = token1Amount;
+    }
+
     // swap
     // TODOs: add TFHE.allow()
     function preSwap(
@@ -105,6 +118,9 @@ contract IncoPair is GatewayCaller, ConfidentialERC20 {
         );
         eCumulativeToken0 = TFHE.add(eCumulativeToken0, eAmount0In);
         eCumulativeToken1 = TFHE.add(eCumulativeToken1, eAmount1In);
+
+        swapUsers.push(msg.sender);
+
         swapCounter++;
     }
 
@@ -165,6 +181,34 @@ contract IncoPair is GatewayCaller, ConfidentialERC20 {
         eReserve1 = TFHE.asEuint64(reserve1);
 
         // distribute
+        for (uint i = 0; i < swapUsers.length; i++) {
+            address swapUser = swapUsers[0];
+            euint64 userToken0 = TFHE.mul(
+                TFHE.asEuint64(amountToken0Out),
+                TFHE.div(
+                    eUserCumulativeToken0[swapUser],
+                    uint8(cumulativeToken0)
+                )
+            );
+            euint64 userToken1 = TFHE.mul(
+                TFHE.asEuint64(amountToken1Out),
+                TFHE.div(
+                    eUserCumulativeToken1[swapUser],
+                    uint8(cumulativeToken1)
+                )
+            );
+            token0.transfer(swapUser, userToken0);
+            token1.transfer(swapUser, userToken1);
+
+            eUserCumulativeToken0[swapUser] = TFHE.asEuint64(0);
+            eUserCumulativeToken1[swapUser] = TFHE.asEuint64(0);
+
+            // set counter, ecumulativeAmountIn0, ecumulativeAmountIn1, users ecumulativeAmountIn0, users ecumulativeAmountIn1 to Zero
+        }
+
+        swapCounter = 0;
+        eCumulativeToken0 = TFHE.asEuint64(0);
+        eCumulativeToken1 = TFHE.asEuint64(0);
     }
 
     function getAmountOut(
@@ -180,65 +224,4 @@ contract IncoPair is GatewayCaller, ConfidentialERC20 {
 
         return amountOut;
     }
-
-    // // Owner-only function to request decryption of a user's balance
-    // function requestUserBalanceDecryption(
-    //     address user
-    // ) public onlyOwner returns (uint256) {
-    //     euint64 encryptedBalance = balances[user];
-    //     TFHE.allow(encryptedBalance, address(this));
-
-    //     uint256[] memory cts = new uint256[](1);
-    //     cts[0] = Gateway.toUint256(encryptedBalance);
-
-    //     uint256 requestId = Gateway.requestDecryption(
-    //         cts,
-    //         this.onDecryptionCallback.selector,
-    //         0,
-    //         block.timestamp + 100,
-    //         false
-    //     );
-    //     addParamsAddress(requestId, user);
-    //     return requestId;
-    // }
-
-    // // Callback function to handle decrypted balance for a user
-    // function onDecryptionCallback(
-    //     uint256 requestId,
-    //     uint64 decryptedAmount
-    // ) public onlyGateway returns (bool) {
-    //     address[] memory params = getParamsAddress(requestId);
-    //     emit UserBalanceDecrypted(params[0], decryptedAmount);
-    //     return true;
-    // }
-
-    // function swap(uint amount0Out, uint amount1Out, address to, bytes calldata data) external lock {
-    //     require(amount0Out > 0 || amount1Out > 0, 'UniswapV2: INSUFFICIENT_OUTPUT_AMOUNT');
-    //     (uint112 _reserve0, uint112 _reserve1,) = getReserves(); // gas savings
-    //     require(amount0Out < _reserve0 && amount1Out < _reserve1, 'UniswapV2: INSUFFICIENT_LIQUIDITY');
-
-    //     uint balance0;
-    //     uint balance1;
-    //     { // scope for _token{0,1}, avoids stack too deep errors
-    //     address _token0 = token0;
-    //     address _token1 = token1;
-    //     require(to != _token0 && to != _token1, 'UniswapV2: INVALID_TO');
-    //     if (amount0Out > 0) _safeTransfer(_token0, to, amount0Out); // optimistically transfer tokens
-    //     if (amount1Out > 0) _safeTransfer(_token1, to, amount1Out); // optimistically transfer tokens
-    //     if (data.length > 0) IUniswapV2Callee(to).uniswapV2Call(msg.sender, amount0Out, amount1Out, data);
-    //     balance0 = IERC20(_token0).balanceOf(address(this));
-    //     balance1 = IERC20(_token1).balanceOf(address(this));
-    //     }
-    //     uint amount0In = balance0 > _reserve0 - amount0Out ? balance0 - (_reserve0 - amount0Out) : 0;
-    //     uint amount1In = balance1 > _reserve1 - amount1Out ? balance1 - (_reserve1 - amount1Out) : 0;
-    //     require(amount0In > 0 || amount1In > 0, 'UniswapV2: INSUFFICIENT_INPUT_AMOUNT');
-    //     { // scope for reserve{0,1}Adjusted, avoids stack too deep errors
-    //     uint balance0Adjusted = balance0.mul(1000).sub(amount0In.mul(3));
-    //     uint balance1Adjusted = balance1.mul(1000).sub(amount1In.mul(3));
-    //     require(balance0Adjusted.mul(balance1Adjusted) >= uint(_reserve0).mul(_reserve1).mul(1000**2), 'UniswapV2: K');
-    //     }
-
-    //     _update(balance0, balance1, _reserve0, _reserve1);
-    //     emit Swap(msg.sender, amount0In, amount1In, amount0Out, amount1Out, to);
-    // }
 }

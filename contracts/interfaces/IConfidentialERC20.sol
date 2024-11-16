@@ -14,4 +14,6 @@ interface IConfidentialERC20 {
         address to,
         euint64 encryptedAmount
     ) external returns (bool);
+
+    function transfer(address to, euint64 amount) external returns (bool);
 }
