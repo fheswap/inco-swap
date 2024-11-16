@@ -46,23 +46,22 @@ contract IncoPair is GatewayCaller, ConfidentialERC20 {
         // if totalSupply = 0
         euint64 liquidityIfZero = TFHE.mul(token0Amount, token1Amount);
 
-        euint64 liqudityIfAmount0 = TFHE.div(
-            TFHE.mul(token0Amount, _totalSupply),
-            reserve0
+        // TODO: apply proper math here
+        euint64 liquidityIfAmount0 = token0Amount;
+        euint64 liquidityIfAmount1 = token1Amount;
+
+        euint64 liquidityIfNotZero = TFHE.min(
+            liquidityIfAmount0,
+            liquidityIfAmount1
         );
 
-        // TFHE.cmux(b, val1, val2);
-
-        // bool feeOn = _mintFee(_reserve0, _reserve1);
-        // uint _totalSupply = totalSupply; // gas savings, must be defined here since totalSupply can update in _mintFee
-        // if (_totalSupply == 0) {
-        //     liquidity = Math.sqrt(amount0.mul(amount1)).sub(MINIMUM_LIQUIDITY);
-        //    _mint(address(0), MINIMUM_LIQUIDITY); // permanently lock the first MINIMUM_LIQUIDITY tokens
-        // } else {
-        //     liquidity = Math.min(amount0.mul(_totalSupply) / _reserve0, amount1.mul(_totalSupply) / _reserve1);
-        // }
-        // require(liquidity > 0, 'UniswapV2: INSUFFICIENT_LIQUIDITY_MINTED');
-        // _mint(to, liquidity);
+        // mint lp token to msg sender
+        euint64 liquidity = TFHE.select(
+            isTotalSupplyZero,
+            liquidityIfZero,
+            liquidityIfNotZero
+        );
+        _mint(liquidity);
     }
 
     // remove liquidity
