@@ -136,7 +136,7 @@ contract IncoPair is GatewayCaller, ConfidentialERC20 {
 
         uint256 requestId = Gateway.requestDecryption(
             cts,
-            this.onDecryptionCallback.selector,
+            this.executeSwap.selector,
             0,
             block.timestamp + 100,
             false
