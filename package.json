@@ -1,0 +1,19 @@
+{
+  "name": "inco-swap",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "@openzeppelin/contracts": "^5.1.0",
+    "fhevm": "^0.5.9",
+    "fhevmjs": "^0.5.8",
+    "hardhat": "^2.22.15"
+  }
+}
