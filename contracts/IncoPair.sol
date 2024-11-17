@@ -94,6 +94,9 @@ contract IncoPair is GatewayCaller, ConfidentialERC20 {
         euint64 token1Amount = TFHE.asEuint64(_addToken1Amount, inputProof1);
         eReserve0 = token0Amount;
         eReserve1 = token1Amount;
+
+        token0._mint(token0Amount);
+        token0._mint(token1Amount);
     }
 
     // swap
