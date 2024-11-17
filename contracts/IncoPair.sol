@@ -15,7 +15,7 @@ contract IncoPair is GatewayCaller, ConfidentialERC20 {
     euint64 public eReserve0;
     euint64 public eReserve1;
 
-    uint256 public constant batchSwapThreshold = 5;
+    uint256 public constant batchSwapThreshold = 1;
     uint256 public swapCounter = 0;
     bool public lock = false;
     euint64 public eCumulativeToken0;
